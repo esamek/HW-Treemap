@@ -1,29 +1,7 @@
 
 (function($){
 
-    var getAmounts = function(obj){
-        var a = [];
-        for(allocation in obj){
-            var amt = obj[allocation];
-            if(amt > 0 && allocation != 'NetIncome'){
-                a.push(amt);
-            }
 
-        }
-        return a;
-    };
-
-    var getLabels = function(obj){
-        var l = [];
-        for(allocation in obj){
-            var all = allocation;
-            if(allocation != 'NetIncome'){
-                l.push(allocation);
-            }
-
-        }
-        return l;
-    }
 
     var isArray = function(arr) {
             return arr && arr.constructor === Array;
@@ -91,11 +69,11 @@
         },
         getLabels: function(){
             var d = this.data,
-                amts = [];
+                labels = [];
             $.each(d,function(i,v){
-                amts.push(v.name);
+                labels.push(v.name);
             });
-            return amts;
+            return labels;
         },
         getAmounts: function(){
             var d = this.data,
@@ -151,14 +129,14 @@
         draw: function(){
             var that = this;
 
-
             this.paper = new Raphael(that.chart,that.width,that.height);
 
             var p = this.paper,
                 n = this.nodes;
+
             //background
             this.background = p.rect(0,0,that.width,that.height);
-            this.background.attr('fill','green');
+            this.background.attr('fill','#575a5d');
             $.each(n,function(i,v){
                 var name = v.name;
                 var points = {
@@ -174,10 +152,18 @@
                 v.w = points.x2;
                 v.h = points.y2;
                 v.box = p.rect(points.x1,points.y1,points.x2,points.y2);
+                v.highlightColor = that.getColor(v);
+                v.box.attr('fill',v.highlightColor)
+                     .attr('fill-opacity',0)
+                     .attr('stroke','#fff')
+                     .attr('stroke-width',3);
+
                 var tx = v.x1 + (v.w / 2);
                 var ty = v.y1 + (v.h / 2);
                 v.label = p.text(tx, ty, name);
-                v.label.attr('font-size',that.fontSize(v.w,v.h));
+                v.label.attr('font-size',that.fontSize(v.w,v.h))
+                       .attr('fill','#fff')
+                       .attr('font-family',"'Proxima Nova', sans-serif")
 
                 if(v.label.getBBox().width > v.x2-v.x1 && v.label.getBBox().width <= v.y2-v.y1) {
                     v.label.rotate(-90);
@@ -185,9 +171,11 @@
                 v.cover = p.rect(points.x1,points.y1,points.x2,points.y2)
                             .attr('opacity',0)
                             .attr('fill','#fff')
-                            .attr('stroke','#fff');
+                            .attr('stroke','#fff')
+                            .attr('cursor','pointer');
 
-                that.doColors(v);
+
+
                 that.doEventHandling(v);
 
             });
@@ -199,14 +187,14 @@
         },
 
         doEventHandling: function(node){
-            var that = this,
-                box = node.box,
-                label = node.label,
-                cover = node.cover,
-                p = this.paper;
+            var that      = this,
+                box       = node.box,
+                label     = node.label,
+                cover     = node.cover,
+                p         = this.paper;
                 node.open = false;
 
-                box._kind = "box";
+                box._kind   = "box";
                 label._kind = "label";
                 cover._kind = "cover";
 
@@ -217,8 +205,6 @@
                     cover
                 );
 
-
-
                 this.clickHandler(node);
                 this.hoverHandler(node);
 
@@ -228,67 +214,106 @@
             node.cover.hover(function(){
                 if(node.open) return;
                 node.box.animate({
-                    'opacity':1,
-                    'stroke-opacity':1
+                    'fill-opacity':1
                 },300,'>');
             },
             function(){
                 if(node.open) return;
                 node.box.animate({
-                    'opacity':0.2,
-                    'stroke-opacity':0
+                    'fill-opacity':0
                 },300,'<');
             });
         },
+        showBoxContent: function(node){
+            var that = this,
+                p    = this.paper;
+
+
+
+
+
+
+
+        },
+        hideBoxContent: function(node){
+
+        },
         clickHandler: function(node){
             var that = this;
-            var tX = (node.x1 == 0) ?  0 : node.x1 * -1;
-            var tY = (node.y1 == 0) ?  0 : node.y1 * -1;
-            node.cover.click(function(){
 
+            node.cover.click(function(){
+                // open logic
                 if(node.open == false){
 
                     node.set.forEach(function(a){
-                        a.toFront().animate({
-                             width:  that.width,
-                             height: that.height,
-                            transform: "t" + tX + "," + tY
-                        },400,'backIn');
 
-                        if(a._kind == "box"){
+                        if(a._kind == "box" || a._kind == "cover"){
+
+                            var boxX = (node.x1 == 0) ?  0 : node.x1 * -1;
+                            var boxY = (node.y1 == 0) ?  0 : node.y1 * -1;
+
+                            a.animate({
+                                 width:  that.width,
+                                 height: that.height,
+                                transform: "t" + boxX + "," + boxY
+                            },400,'backIn');
+
+                        }else if(a._kind == "box"){
+
                             a.animate({
                                 'stroke-opacity':1,
-                                'opacity':1
+                                'fill-opacity':1
                             },400,'>');
+
+                        }else if (a._kind == "label"){
+
+                            var labelX = (a.attr('x') - 20) * -1;
+                            var labelY = (a.attr('y') - 20) * -1;
+                            console.log(labelX,labelY);
+                            a.attr({'text-anchor': 'start'});
+                            a.animate({
+                                'transform'  : "R0,T" + labelX + "," + labelY,
+                                'font-size'  : '24px'
+                            },400,'>');
+
                         }
+
+                        a.toFront();
 
 
                     });
-
+                    that.showBoxContent(node);
                     node.open = true;
-
+                // close logic
                 }else{
 
                     node.set.forEach(function(a){
 
                         a.stop();
-
-                        a.animate({
-                            transform: "",
-                            width:  node.w,
-                            height: node.h
-                        },500,'bounce');
-
-
-                        if(a._kind == "box"){
+                        if(a._kind == "box" || a._kind == "cover"){
                             a.animate({
-                                'stroke-opacity':0.2,
-                                'opacity':0.2
-                            },400,'>');
+                                transform: "",
+                                width:  node.w,
+                                height: node.h
+                            },500,'<');
+
+
+                        }else if(a._kind == "box"){
+
+                            a.animate({
+                                'fill-opacity':0
+                            },500,'>');
+
+                        }else if (a._kind == "label"){
+                            a.animate({
+                                transform: "",
+                                'font-size': that.fontSize(a.w,a.h)
+                            },500,'bounce');
+                            a.attr({'text-anchor': 'middle'});
                         }
 
                     });
-
+                    that.hideBoxContent(node);
                     node.open = false;
                 }
 
@@ -297,7 +322,7 @@
 
         },
 
-        doColors: function(b){
+        getColor: function(b){
             var color;
             var colors = ['#F9C031',"#00b2e9","#f5871e","#de1c85","#575a5d","#76c34d","#76C34D"];
 
@@ -322,11 +347,8 @@
                 break;
             }
 
-            b.box.attr('fill',color)
-                 .attr('opacity',0.2);
-            b.box.attr('stroke','#fff')
-                 .attr('stroke-width',3)
-                 .attr('stroke-opacity',0);
+
+            return color;
 
 
         },
@@ -334,7 +356,7 @@
 
         averagelabelsize:function(){
             var that  = this;
-            var labels = getLabels(that._data_);
+            var labels = this.getLabels(that.data);
             return that.totalLabelLength(labels) / that.countLabels(labels)
         } ,
         // total length of labels (i.e [["Italy"],["Spain", "Greece"]] -> 16)
@@ -403,50 +425,14 @@ $(function(){
 var defaultData = {
         'NetIncome': 4558,
         'Savings'  : 300,
-        'Debt'     : 0,
-        'Bills'    : 1456,
+        'Debt'     : 100,
+        'Bills'    : 956,
         'RegExp'   : 1200,
         'Reserve'  : 250
     };
 
 
    x = $('#treemap').HWTreemap(defaultData);
-
-
-        // // Mouse Over Effect Definition
-        // function initMouseOver(b,l){
-        //     //l.attr('opacity',0.5);
-        //     console.log('mo');
-        // }
-
-        // // Mouse Out Effect Definition
-        // function initMouseOut(b,l){
-
-        // }
-
-
-
-
-
-
-        // // interaction api
-        // function initInteractions(b,l){
-        //      b.hover(initMouseOver(b,l),initMouseOut(b,l));
-        //     // b.mouseover = initMouseOver(b,l);
-        //     // b.mouseout = initMouseOut(b,l);
-        // }
-
-
-
-
-
-
-
-
-
-        // var data = [60000, 60000, 40000, 30000, 20000, 10000];
-        // var labels = ["Bills", "Savings", "Regular Expenses", "Reserve", "Debt Payments", "Leftover Income"];
-        // var colors = ['#F9C031',"#00b2e9","#f5871e","#de1c85","#575a5d","#76c34d"];
 
 
 
